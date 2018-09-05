@@ -136,7 +136,7 @@ class Qa::LinkedDataTermsController < ::ApplicationController
     end
 
     def performance_data
-      return true if params[:performance_data] && params[:performance_data].downcase == 'true'
+      return true if params[:performance_data] && params[:performance_data].casecmp('true')
       false
     end
 
