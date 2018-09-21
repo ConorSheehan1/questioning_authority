@@ -61,6 +61,14 @@ describe Qa::LinkedDataTermsController, type: :controller do
     end
   end
 
+  describe '#check_uri_param' do
+    it 'returns 400 if the uri is missing' do
+      expect(Rails.logger).to receive(:warn).with("Required show param 'uri' is missing or empty")
+      get :fetch, params: { uri: '', vocab: 'OCLC_FAST' }
+      expect(response.code).to eq('400')
+    end
+  end
+
   describe '#init_authority' do
     context 'when the authority does not exist' do
       it 'returns 400' do
@@ -68,6 +76,18 @@ describe Qa::LinkedDataTermsController, type: :controller do
         get :search, params: { q: 'a query', vocab: 'fake_authority' }
         expect(response.code).to eq('400')
       end
+    end
+  end
+
+  describe '#list' do
+    let(:expected_results) { ['Auth1', 'Auth2', 'Auth3'] }
+    before do
+      allow(Qa::Authorities::LinkedData::AuthorityService).to receive(:authority_names).and_return(expected_results)
+    end
+    it 'returns list of authorities' do
+      get :list
+      expect(response).to be_successful
+      expect(response.body).to eq expected_results.to_json
     end
   end
 
