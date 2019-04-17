@@ -14,6 +14,7 @@ module Qa::Local
 
         generate "model qa/local_authority name:string:uniq"
         generate "model qa/local_authority_entry local_authority:references label:string uri:string:uniq lower_label:string"
+        generate "qa:local:tables:templates:add_index_to_local_authorities"
         migration_file = Dir.entries(File.join(destination_root, 'db/migrate/'))
                             .reject { |name| !name.include?('create_qa_local_authority_entries') }.first
         migration_file = File.join('db/migrate', migration_file)
@@ -28,13 +29,6 @@ module Qa::Local
           "    end\n" \
           "    add_index :qa_local_authority_entries, [:lower_label, :local_authority_id], name: 'index_qa_local_authority_entries_on_lower_label_and_authority'"
         end
-
-        message = "Rails doesn't support functional indexes in migrations, so we inserted an exec into the migration since you are specifying you are running with mysql.\n" \
-                  "The excute will not be run for another database.  The commands being run are: "\
-                  " ALTER TABLE qa_local_authority_entries ADD lower_label VARCHAR(256) GENERATED ALWAYS AS (lower(label)) VIRTUAL" \
-                  " CREATE INDEX index_qa_local_authority_entries_on_lower_label_and_authority ON qa_local_authority_entries (local_authority_id, lower_label)"
-
-        say_status("info", message, :yellow)
       end
     end
   end
