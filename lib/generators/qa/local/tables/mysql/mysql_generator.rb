@@ -2,7 +2,7 @@ require 'rails/generators/active_record/migration'
 module Qa::Local
   module Tables
     class MysqlGenerator < Rails::Generators::Base
-      source_root File.expand_path('../templates', __FILE__)
+      source_root File.expand_path('../../../templates', __FILE__)
       include ActiveRecord::Generators::Migration
 
       def migrations # rubocop:disable Metrics/MethodLength
@@ -14,7 +14,6 @@ module Qa::Local
 
         generate "model qa/local_authority name:string:uniq"
         generate "model qa/local_authority_entry local_authority:references label:string uri:string:uniq lower_label:string"
-        generate "qa:local:tables:templates:add_index_to_local_authorities"
         migration_file = Dir.entries(File.join(destination_root, 'db/migrate/'))
                             .reject { |name| !name.include?('create_qa_local_authority_entries') }.first
         migration_file = File.join('db/migrate', migration_file)

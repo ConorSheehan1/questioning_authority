@@ -1,7 +1,7 @@
 require 'rails/generators/active_record/migration'
 module Qa::Local
   class TablesGenerator < Rails::Generators::Base
-    source_root File.expand_path('../templates', __FILE__)
+    source_root File.expand_path('../../templates', __FILE__)
     include ActiveRecord::Generators::Migration
 
     def migrations
@@ -12,7 +12,8 @@ module Qa::Local
       end
       generate "model qa/local_authority name:string:uniq"
       generate "model qa/local_authority_entry local_authority:references label:string uri:string:uniq"
-      generate "qa:local:tables:templates:add_index_to_local_authorities"
+      copy_file "db/migrate/add_index_to_local_authorities.rb",
+                "db/migrate/#{Time.now.utc.strftime("%Y%m%d%H%M%S")}_add_index_to_local_authorities.rb"
       migration_file = Dir.entries(File.join(destination_root, 'db/migrate/'))
                           .reject { |name| !name.include?('create_qa_local_authority_entries') }.first
       migration_file = File.join('db/migrate', migration_file)
