@@ -5,16 +5,19 @@
 module Qa::Authorities
   module LinkedData
     class SearchConfig
-      attr_reader :prefixes
+      attr_reader :prefixes, :full_config, :search_config
+      private :full_config, :search_config
+
+      delegate :authority_name, to: :full_config
 
       # @param [Hash] config the search portion of the config
-      def initialize(config, prefixes = {})
+      # @param [Hash<Symbol><String>] prefixes URL map of prefixes to use with ldpaths
+      # @param [Qa::Authorities::LinkedData::Config] full_config the full linked data configuration that the passed in search config is part of
+      def initialize(config, prefixes = {}, full_config = nil)
         @search_config = config
         @prefixes = prefixes
+        @full_config = full_config
       end
-
-      attr_reader :search_config
-      private :search_config
 
       # Does this authority configuration have search defined?
       # @return [Boolean] true if search is configured; otherwise, false
@@ -29,6 +32,7 @@ module Qa::Authorities
       end
 
       # Return the preferred language for literal value selection for search query.
+      # This is the default used for this authority if the user does not pass in a language.
       # Only applies if the authority provides language encoded literals.
       # @return [String] the configured language for search query
       def language
@@ -39,40 +43,80 @@ module Qa::Authorities
         @language = lang.collect(&:to_sym)
       end
 
-      # Return results predicates if specified
-      # @return [Hash,NilClass] all the configured predicates to pull out of the results
+      # Return results ldpaths or predicates if specified
+      # @return [Hash,NilClass] all the configured ldpaths or predicates to pull out of the results
       def results
         search_config[:results]
+      end
+
+      # Return results id_ldpath
+      # @return [String] the configured ldpath to use to extract the id from the results
+      def results_id_ldpath
+        Config.config_value(results, :id_ldpath)
       end
 
       # Return results id_predicate
       # @return [String] the configured predicate to use to extract the id from the results
       def results_id_predicate
+        Qa.deprecation_warning(
+          in_msg: 'Qa::Authorities::LinkedData::SearchConfig',
+          msg: "`results_id_predicate` is deprecated; use `results_id_ldpath` by updating linked data search config results to specify as `id_ldpath`"
+        )
         Config.predicate_uri(results, :id_predicate)
+      end
+
+      # Return results label_ldpath
+      # @return [String] the configured ldpath to use to extract label values from the results
+      def results_label_ldpath
+        Config.config_value(results, :label_ldpath)
       end
 
       # Return results label_predicate
       # @return [String] the configured predicate to use to extract label values from the results
       def results_label_predicate
+        Qa.deprecation_warning(
+          in_msg: 'Qa::Authorities::LinkedData::SearchConfig',
+          msg: "`results_label_predicate` is deprecated; use `results_label_ldpath` by updating linked data search config results to specify as `label_ldpath`"
+        )
         Config.predicate_uri(results, :label_predicate)
+      end
+
+      # Return results altlabel_ldpath
+      # @return [String] the configured ldpath to use to extract altlabel values from the results
+      def results_altlabel_ldpath
+        Config.config_value(results, :altlabel_ldpath)
       end
 
       # Return results altlabel_predicate
       # @return [String] the configured predicate to use to extract altlabel values from the results
       def results_altlabel_predicate
+        Qa.deprecation_warning(
+          in_msg: 'Qa::Authorities::LinkedData::SearchConfig',
+          msg: "`results_altlabel_predicate` is deprecated; use `results_altlabel_ldpath` by updating linked data search config results to specify as `altlabel_ldpath`"
+        )
         Config.predicate_uri(results, :altlabel_predicate)
       end
 
       # Does this authority configuration support sorting of search results?
       # @return [True|False] true if sorting of search results is supported; otherwise, false
       def supports_sort?
-        return true unless results_sort_predicate.nil? || !results_sort_predicate.size.positive?
+        return true unless results_sort_ldpath.present? || !results_sort_predicate.present?
         false
+      end
+
+      # Return results sort_ldpath
+      # @return [String] the configured ldpath to use for sorting results from the query search
+      def results_sort_ldpath
+        Config.config_value(results, :sort_ldpath)
       end
 
       # Return results sort_predicate
       # @return [String] the configured predicate to use for sorting results from the query search
       def results_sort_predicate
+        Qa.deprecation_warning(
+          in_msg: 'Qa::Authorities::LinkedData::SearchConfig',
+          msg: "`results_sort_predicate` is deprecated; use `results_sort_ldpath` by updating linked data search config results to specify as `sort_ldpath`"
+        )
         Config.predicate_uri(results, :sort_predicate)
       end
 
@@ -90,10 +134,20 @@ module Qa::Authorities
         @context_map ||= Qa::LinkedData::Config::ContextMap.new(search_config.fetch(:context), prefixes)
       end
 
-      # Return parameters that are required for QA api
+      # Return parameters that are supported directly by QA api (e.g. q, subauth, lang)
       # @return [Hash] the configured search url parameter mappings
       def qa_replacement_patterns
-        search_config.fetch(:qa_replacement_patterns)
+        search_config.fetch(:qa_replacement_patterns, {})
+      end
+
+      # @return [Boolean] true if supports language parameter; otherwise, false
+      def supports_subauthorities?
+        qa_replacement_patterns.key?(:subauth) && subauthorities?
+      end
+
+      # @return [Boolean] true if supports language parameter; otherwise, false
+      def supports_language_parameter?
+        qa_replacement_patterns.key? :lang
       end
 
       # Are there subauthorities configured for search query?

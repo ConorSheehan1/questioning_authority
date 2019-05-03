@@ -1,10 +1,24 @@
 require 'spec_helper'
+require 'qa/authorities/linked_data/config/search_config'
 
 RSpec.describe Qa::Authorities::LinkedData::SearchConfig do
+  before do
+    Qa::LinkedData::AuthorityService.load_authorities
+  end
+
   let(:full_config) { Qa::Authorities::LinkedData::Config.new(:LOD_FULL_CONFIG).search }
   let(:min_config) { Qa::Authorities::LinkedData::Config.new(:LOD_MIN_CONFIG).search }
   let(:term_only_config) { Qa::Authorities::LinkedData::Config.new(:LOD_TERM_ONLY_CONFIG).search }
   let(:encoding_config) { Qa::Authorities::LinkedData::Config.new(:LOD_ENCODING_CONFIG).search }
+
+  let(:ldpath_results_config) do
+    {
+      id_ldpath: 'schema:identifier ::xsd:string',
+      label_ldpath: 'skos:prefLabel ::xsd:string',
+      altlabel_ldpath: 'skos:altLabel ::xsd:string',
+      sort_ldpath: 'skos:prefLabel ::xsd:string'
+    }
+  end
 
   describe '#search_config' do
     let(:full_search_config) do
@@ -12,7 +26,7 @@ RSpec.describe Qa::Authorities::LinkedData::SearchConfig do
         url: {
           :@context => 'http://www.w3.org/ns/hydra/context.jsonld',
           :@type => 'IriTemplate',
-          template: 'http://localhost/test_default/search?{?subauth}&{?query}&{?param1}&{?param2}',
+          template: 'http://localhost/test_default/search?{?subauth}&{?query}&{?param1}&{?param2}&{?lang}',
           variableRepresentation: 'BasicRepresentation',
           mapping: [
             {
@@ -41,12 +55,20 @@ RSpec.describe Qa::Authorities::LinkedData::SearchConfig do
               property: 'hydra:freetextQuery',
               required: false,
               default: 'echo'
+            },
+            {
+              :@type => 'IriTemplateMapping',
+              variable: 'lang',
+              property: 'hydra:freetextQuery',
+              required: false,
+              default: 'fr'
             }
           ]
         },
         qa_replacement_patterns: {
           query: 'query',
-          subauth: 'subauth'
+          subauth: 'subauth',
+          lang: 'lang'
         },
         language: ['en', 'fr', 'de'],
         results: {
@@ -177,6 +199,19 @@ RSpec.describe Qa::Authorities::LinkedData::SearchConfig do
     end
   end
 
+  describe '#results_id_ldpath' do
+    it 'returns nil if only term configuration is defined' do
+      expect(term_only_config.results_id_ldpath).to eq nil
+    end
+
+    context 'when id specified as ldpath' do
+      before { allow(full_config).to receive(:results).and_return(ldpath_results_config) }
+      it 'returns the ldpath' do
+        expect(full_config.results_id_ldpath).to eq 'schema:identifier ::xsd:string'
+      end
+    end
+  end
+
   describe '#results_label_predicate' do
     it 'returns nil if only term configuration is defined' do
       expect(term_only_config.results_label_predicate).to eq nil
@@ -186,15 +221,44 @@ RSpec.describe Qa::Authorities::LinkedData::SearchConfig do
     end
   end
 
+  describe '#results_label_ldpath' do
+    it 'returns nil if only term configuration is defined' do
+      expect(term_only_config.results_label_ldpath).to eq nil
+    end
+
+    context 'when label specified as ldpath' do
+      before { allow(full_config).to receive(:results).and_return(ldpath_results_config) }
+      it 'returns the ldpath' do
+        expect(full_config.results_label_ldpath).to eq 'skos:prefLabel ::xsd:string'
+      end
+    end
+  end
+
   describe '#results_altlabel_predicate' do
     it 'returns nil if only term configuration is defined' do
       expect(term_only_config.results_altlabel_predicate).to eq nil
     end
-    it 'return nil if altlabel predicate is not defined' do
+    it 'returns nil if altlabel predicate is not defined' do
       expect(min_config.results_altlabel_predicate).to eq nil
     end
     it 'returns the predicate that holds the altlabel in search results' do
       expect(full_config.results_altlabel_predicate).to eq RDF::URI('http://www.w3.org/2004/02/skos/core#altLabel')
+    end
+  end
+
+  describe '#results_altlabel_ldpath' do
+    it 'returns nil if only term configuration is defined' do
+      expect(term_only_config.results_altlabel_ldpath).to eq nil
+    end
+    it 'returns nil if altlabel ldpath is not defined' do
+      expect(min_config.results_altlabel_ldpath).to eq nil
+    end
+
+    context 'when altlabel specified as ldpath' do
+      before { allow(full_config).to receive(:results).and_return(ldpath_results_config) }
+      it 'returns the ldpath' do
+        expect(full_config.results_altlabel_ldpath).to eq 'skos:altLabel ::xsd:string'
+      end
     end
   end
 
@@ -222,6 +286,22 @@ RSpec.describe Qa::Authorities::LinkedData::SearchConfig do
     end
   end
 
+  describe '#results_sort_ldpath' do
+    it 'returns nil if only term configuration is defined' do
+      expect(term_only_config.results_sort_ldpath).to eq nil
+    end
+    it 'returns nil if sort ldpath is not defined' do
+      expect(min_config.results_sort_ldpath).to eq nil
+    end
+
+    context 'when sort specified as ldpath' do
+      before { allow(full_config).to receive(:results).and_return(ldpath_results_config) }
+      it 'returns the ldpath' do
+        expect(full_config.results_sort_ldpath).to eq 'skos:prefLabel ::xsd:string'
+      end
+    end
+  end
+
   describe '#supports_context?' do
     it 'returns false if only term configuration is defined' do
       expect(term_only_config.supports_context?).to eq false
@@ -243,6 +323,30 @@ RSpec.describe Qa::Authorities::LinkedData::SearchConfig do
     end
     it 'returns the context map if defined in the configuration' do
       expect(full_config.context_map).to be_kind_of Qa::LinkedData::Config::ContextMap
+    end
+  end
+
+  describe '#supports_language_parameter?' do
+    it 'returns false if only term configuration is defined' do
+      expect(term_only_config.supports_language_parameter?).to eq false
+    end
+    it 'returns false if the configuration does NOT define the lang replacement' do
+      expect(min_config.supports_language_parameter?).to eq false
+    end
+    it 'returns true if the configuration defines the lang replacement' do
+      expect(full_config.supports_language_parameter?).to eq true
+    end
+  end
+
+  describe '#supports_subauthorities?' do
+    it 'returns false if only term configuration is defined' do
+      expect(term_only_config.supports_subauthorities?).to eq false
+    end
+    it 'returns false if the configuration does NOT define the subauth replacement' do
+      expect(min_config.supports_subauthorities?).to eq false
+    end
+    it 'returns true if the configuration defines the subauth replacement' do
+      expect(full_config.supports_subauthorities?).to eq true
     end
   end
 
