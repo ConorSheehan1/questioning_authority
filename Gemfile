@@ -4,8 +4,8 @@ gemspec path: File.expand_path('..', __FILE__)
 
 group :development, :test do
   gem 'coveralls', require: false
+  gem "generator_spec", require: false # "~> 0.9.4"
   gem 'simplecov', require: false
-  gem "generator_spec", require: false #"~> 0.9.4"
 end
 
 # BEGIN ENGINE_CART BLOCK

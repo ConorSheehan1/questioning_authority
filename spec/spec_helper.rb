@@ -52,7 +52,7 @@ RSpec.configure do |config|
 end
 
 def webmock_fixture(fixture)
-  File.new File.expand_path(File.join("../fixtures", fixture), __FILE__)
+  File.new File.expand_path(File.join('..', 'fixtures', fixture), __FILE__)
 end
 
 # returns the file contents
